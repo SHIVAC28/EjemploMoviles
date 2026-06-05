@@ -14,7 +14,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose
+
+    .resources.painterResource
 
 import myapplication_prueba.shared.generated.resources.Res
 import myapplication_prueba.shared.generated.resources.compose_multiplatform
@@ -24,6 +26,10 @@ import myapplication_prueba.shared.generated.resources.compose_multiplatform
 fun App() {
     MaterialTheme {
         var showContent by remember { mutableStateOf(false) }
+
+        // Creamos una variable silenciosa para guardar lo de Railway
+        var respuestaRailway by remember { mutableStateOf("") }
+
         Column(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.primaryContainer)
@@ -35,12 +41,23 @@ fun App() {
                 Text("Sistemas OP")
             }
             AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
+
+                // Reemplazamos la línea roja por esto. Hace la llamada a Railway en secreto.
+                LaunchedEffect(showContent) {
+                    if (showContent) {
+                        respuestaRailway = Greeting().greet()
+                        // Esto imprimirá la respuesta de tu servidor en la consola de Android Studio
+                        println("Backend dice: $respuestaRailway")
+                    }
+                }
+
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Image(painterResource(Res.drawable.compose_multiplatform), null)
+
+                    // TU TEXTO ORIGINAL INTACTO COMO LO QUERÍAS:
                     Text("¡Bienvenido a nuestro primer ejemplo!")
                 }
             }
