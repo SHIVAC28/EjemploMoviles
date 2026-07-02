@@ -147,7 +147,7 @@ fun MainContent(role: String) {
 }
 
 @Composable
-fun FormularioClienteMio() {
+fun FormularioCliente() {
     var nombre by remember { mutableStateOf("") }
     var apellido by remember { mutableStateOf("") }
     var cumpleanos by remember { mutableStateOf("") }
