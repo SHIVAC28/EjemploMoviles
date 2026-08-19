@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun CustomerDashboard() {
+fun ClienteDashboard() {
     val scrollState = rememberScrollState()
     val primaryColor = Color(0xFFD32F2F)
 
@@ -101,8 +101,8 @@ fun CustomerDashboard() {
 
         // Services List
         val services = listOf(
-            ServiceData("Corte Moderno", "28 Jun 2026 a las 14:30", "500", "Programada"),
-            ServiceData("Barba VIP", "20 Jun 2026 a las 10:00", "350", "Completada")
+            ServicioData("Corte Moderno", "28 Jun 2026 a las 14:30", "500", "Programada"),
+            ServicioData("Barba VIP", "20 Jun 2026 a las 10:00", "350", "Completada")
         )
 
         if (services.isEmpty()) {
@@ -120,7 +120,7 @@ fun CustomerDashboard() {
             }
         } else {
             services.forEach { service ->
-                ServiceCard(service)
+                ServicioCard(service)
             }
         }
         
@@ -128,10 +128,10 @@ fun CustomerDashboard() {
     }
 }
 
-data class ServiceData(val title: String, val dateTime: String, val price: String, val status: String)
+data class ServicioData(val title: String, val dateTime: String, val price: String, val status: String)
 
 @Composable
-fun ServiceCard(data: ServiceData) {
+fun ServicioCard(data: ServicioData) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),

@@ -1,4 +1,4 @@
-package com.example.myapplication_prueba.cliente
+package com.example.myapplication_prueba.admin
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,18 +20,30 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication_prueba.AdminProfileUpdateRequest
+import com.example.myapplication_prueba.Greeting
+import com.example.myapplication_prueba.PerfilAdmin
 import com.example.myapplication_prueba.cuenta.ToastType
 import com.example.myapplication_prueba.cuenta.WolfToast
 import kotlinx.coroutines.launch
 
 @Composable
-fun ProfileView(onBack: () -> Unit) {
-    var nombres by remember { mutableStateOf("") }
-    var apellidos by remember { mutableStateOf("") }
-    var telefono by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("cliente@wolf.com") } // Disabled
-    var fechaNacimiento by remember { mutableStateOf("") }
-    var direccion by remember { mutableStateOf("") }
+fun AdminEditarPerfilView(perfil: PerfilAdmin?, onBack: () -> Unit) {
+    // Usamos el perfil pasado como parámetro para inicializar los estados
+    var nombres by remember(perfil) { mutableStateOf(perfil?.nombres ?: "") }
+    var apellidos by remember(perfil) { mutableStateOf(perfil?.apellidos ?: "") }
+    var telefono by remember(perfil) { mutableStateOf(perfil?.telefono ?: "") }
+    var email by remember(perfil) { mutableStateOf(perfil?.email ?: "") }
+    
+    // Si el perfil cambia externamente, actualizamos los campos (por seguridad)
+    LaunchedEffect(perfil) {
+        perfil?.let {
+            nombres = it.nombres
+            apellidos = it.apellidos
+            telefono = it.telefono ?: ""
+            email = it.email
+        }
+    }
     
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -42,7 +54,8 @@ fun ProfileView(onBack: () -> Unit) {
     var toastType by remember { mutableStateOf(ToastType.SUCCESS) }
     var isLoading by remember { mutableStateOf(false) }
 
-    val primaryColor = Color(0xFFD32F2F)
+    val primaryColor = Color(0xFFDC2626)
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFFF8F6F6))) {
@@ -50,8 +63,8 @@ fun ProfileView(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Header
             Row(
@@ -61,29 +74,25 @@ fun ProfileView(onBack: () -> Unit) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Color.Gray)
                 }
-                Text("DATOS DE LA CUENTA", fontWeight = FontWeight.Black, fontSize = 20.sp, color = Color(0xFF0F172A))
+                Text("DATOS DEL ADMINISTRADOR", fontWeight = FontWeight.Black, fontSize = 20.sp, color = Color(0xFF0F172A))
             }
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ProfileTextField("NOMBRES", nombres, { nombres = it }, Modifier.weight(1f))
-                        ProfileTextField("APELLIDOS", apellidos, { apellidos = it }, Modifier.weight(1f))
+                        EditField("NOMBRES", nombres, { nombres = it }, Modifier.weight(1f))
+                        EditField("APELLIDOS", apellidos, { apellidos = it }, Modifier.weight(1f))
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ProfileTextField("TELÉFONO", telefono, { if(it.length <= 10) telefono = it }, Modifier.weight(1f), KeyboardType.Phone)
-                        ProfileTextField("EMAIL", email, {}, Modifier.weight(1f), enabled = false)
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ProfileTextField("FECHA NACIMIENTO", fechaNacimiento, { fechaNacimiento = it }, Modifier.weight(1f), placeholder = "AAAA-MM-DD")
-                        ProfileTextField("DIRECCIÓN", direccion, { direccion = it }, Modifier.weight(1f))
+                        EditField("TELÉFONO", telefono, { if(it.length <= 10) telefono = it }, Modifier.weight(1f), KeyboardType.Phone)
+                        EditField("EMAIL", email, { email = it }, Modifier.weight(1f), KeyboardType.Email)
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -93,11 +102,11 @@ fun ProfileView(onBack: () -> Unit) {
                     // Seguridad Section
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.LockReset, contentDescription = null, tint = primaryColor)
-                        Text("SEGURIDAD Y CREDENCIALES", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("SEGURIDAD", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     }
 
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Nueva Contraseña (Dejar en blanco para conservar actual)", fontSize = 10.sp, color = Color.Gray)
+                        Text("Nueva Contraseña (Dejar en blanco para no cambiar)", fontSize = 10.sp, color = Color.Gray)
                         
                         OutlinedTextField(
                             value = password,
@@ -145,21 +154,51 @@ fun ProfileView(onBack: () -> Unit) {
                         }
                         Button(
                             onClick = {
+                                if (email.isBlank()) {
+                                    toastMessage = "El correo electrónico no puede estar vacío"
+                                    toastType = ToastType.ERROR
+                                    return@Button
+                                }
+                                
                                 if (password == confirmPassword) {
                                     isLoading = true
-                                    // Simular update
-                                    toastType = ToastType.SUCCESS
-                                    toastMessage = "Perfil actualizado con éxito"
-                                    isLoading = false
+                                    coroutineScope.launch {
+                                        val result = Greeting().updateAdminProfile(
+                                            AdminProfileUpdateRequest(
+                                                nombres = nombres,
+                                                apellidos = apellidos,
+                                                email = email,
+                                                telefono = telefono,
+                                                password = if (password.isNotBlank()) password else null
+                                            )
+                                        )
+                                        
+                                        if (result.success) {
+                                            toastType = ToastType.SUCCESS
+                                            toastMessage = "Perfil actualizado con éxito"
+                                            password = ""
+                                            confirmPassword = ""
+                                            // Opcional: Volver atrás automáticamente tras éxito después de un delay
+                                            kotlinx.coroutines.delay(1500)
+                                            onBack()
+                                        } else {
+                                            toastType = ToastType.ERROR
+                                            toastMessage = result.message
+                                        }
+                                        isLoading = false
+                                    }
+                                } else {
+                                    toastMessage = "Las contraseñas no coinciden"
+                                    toastType = ToastType.ERROR
                                 }
                             },
                             modifier = Modifier.weight(1f).height(56.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
-                            enabled = !isLoading && (password == confirmPassword)
+                            enabled = !isLoading
                         ) {
                             if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                            else Text("GUARDAR", fontWeight = FontWeight.Bold)
+                            else Text("GUARDAR CAMBIOS", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -167,36 +206,21 @@ fun ProfileView(onBack: () -> Unit) {
         }
 
         toastMessage?.let {
-            WolfToast(it, toastType, { toastMessage = null })
+            WolfToast(message = it, type = toastType, onDismiss = { toastMessage = null })
         }
     }
 }
 
 @Composable
-fun ProfileTextField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    enabled: Boolean = true,
-    placeholder: String = ""
-) {
+fun EditField(label: String, value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier, kt: KeyboardType = KeyboardType.Text) {
     Column(modifier = modifier) {
-        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
+        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.padding(bottom = 4.dp))
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
-            enabled = enabled,
-            placeholder = { if(placeholder.isNotEmpty()) Text(placeholder, fontSize = 12.sp) },
             shape = RoundedCornerShape(12.dp),
-            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
-            colors = OutlinedTextFieldDefaults.colors(
-                disabledContainerColor = Color(0xFFF1F5F9),
-                disabledBorderColor = Color(0xFFE2E8F0)
-            ),
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            keyboardOptions = KeyboardOptions(keyboardType = kt),
             singleLine = true
         )
     }

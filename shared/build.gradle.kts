@@ -21,6 +21,11 @@ kotlin {
        androidResources {
            enable = true
        }
+       packaging {
+           resources {
+               excludes += "/META-INF/{AL2.0,LGPL2.1}"
+           }
+       }
        withHostTest {
            isIncludeAndroidResources = true
        }
@@ -29,6 +34,10 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
+            implementation(libs.androidx.core.ktx)
+            implementation(libs.androidx.appcompat)
+            implementation("androidx.biometric:biometric-ktx:1.2.0-alpha05")
+            implementation("androidx.fragment:fragment-ktx:1.8.1")
         }
         commonMain.dependencies {
             implementation("io.ktor:ktor-client-core:2.3.12")
@@ -45,6 +54,10 @@ kotlin {
             implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
             implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
             implementation("io.ktor:ktor-client-logging:2.3.12")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+            implementation("com.russhwolf:multiplatform-settings-no-arg:1.1.1")
+            implementation("media.kamel:kamel-image:0.9.3")
+            implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

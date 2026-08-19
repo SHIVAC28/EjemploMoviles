@@ -1,6 +1,7 @@
 package com.example.myapplication_prueba.cuenta
 
 import com.example.myapplication_prueba.Greeting
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,6 +25,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+
+import com.example.myapplication_prueba.SettingsManager
+import com.example.myapplication_prueba.sensor.BiometricAuth
+import com.example.myapplication_prueba.sensor.BiometricResult
 
 @Composable
 fun LoginView(onRegisterClick: () -> Unit, onLoginSuccess: (String) -> Unit, successMessage: String? = null) {
@@ -174,6 +179,43 @@ fun LoginView(onRegisterClick: () -> Unit, onLoginSuccess: (String) -> Unit, suc
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Iniciar Sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                    }
+                }
+            }
+
+            // Biometric Login Button
+            val biometricAuth = remember { BiometricAuth() }
+            val savedToken = remember { SettingsManager.getString(SettingsManager.BIOMETRIC_TOKEN) ?: "" }
+            
+            if (biometricAuth.isBiometricAvailable() && savedToken.isNotEmpty()) {
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            val result = biometricAuth.authenticate(
+                                "Autenticación Wolf-Look",
+                                "Inicia sesión con tu huella",
+                                "Usa el sensor biométrico para entrar rápidamente"
+                            )
+                            if (result is BiometricResult.Success) {
+                                isLoading = true
+                                val response = Greeting().biometricLogin(savedToken)
+                                isLoading = false
+                                if (response.success) {
+                                    onLoginSuccess(response.rol ?: "CLIENTE")
+                                } else {
+                                    toastType = ToastType.ERROR
+                                    toastMessage = "Tu huella ya no es válida. Inicia sesión con contraseña."
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, primaryColor)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Fingerprint, null, tint = primaryColor)
+                        Text("Ingresar con Huella", color = primaryColor, fontWeight = FontWeight.Bold)
                     }
                 }
             }

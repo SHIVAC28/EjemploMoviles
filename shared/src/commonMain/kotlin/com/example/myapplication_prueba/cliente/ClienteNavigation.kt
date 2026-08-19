@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,20 +16,27 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication_prueba.SeguridadView
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CustomerNavigationWrapper(role: String, content: @Composable () -> Unit) {
+fun ClienteNavigationWrapper(role: String, onLogout: () -> Unit, content: @Composable () -> Unit) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var selectedItem by remember { mutableStateOf("Inicio") }
     var isProfileMenuExpanded by remember { mutableStateOf(false) }
     var showProfile by remember { mutableStateOf(false) }
+    var currentSubScreen by remember { mutableStateOf<String?>(null) } // "Security", "NewBooking"
     
     val primaryColor = Color(0xFFD32F2F)
 
-    if (showProfile) {
-        ProfileView(onBack = { showProfile = false })
+    if (currentSubScreen == "Security") {
+        SeguridadView(email = "cliente@wolf.com", onBack = { currentSubScreen = null })
+    } else if (currentSubScreen == "NewBooking") {
+        NuevaCitaView(onBack = { currentSubScreen = null })
+    } else if (showProfile) {
+        PerfilView(onBack = { showProfile = false }, onNavigateToSecurity = { currentSubScreen = "Security" })
     } else {
         ModalNavigationDrawer(
             drawerState = drawerState,
@@ -38,28 +46,28 @@ fun CustomerNavigationWrapper(role: String, content: @Composable () -> Unit) {
                     drawerContainerColor = Color.White
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // Header del Menú
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.padding(bottom = 32.dp, top = 16.dp)
                         ) {
+                            Box(modifier = Modifier.size(40.dp).background(primaryColor, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.ContentCut, null, tint = Color.White)
+                            }
                             Column {
                                 Text("Wolf-Look", fontWeight = FontWeight.Black, fontSize = 20.sp)
                                 Text("CLIENTE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
-                        // Items del Menú
                         val menuItems = listOf(
-                            CustomerMenuItem("Inicio", Icons.Default.Dashboard),
-                            CustomerMenuItem("Servicios", Icons.Default.Storefront),
-                            CustomerMenuItem("Mis Citas", Icons.Default.ContentCut),
-                            CustomerMenuItem("Productos", Icons.Default.LocalOffer)
+                            ClienteMenuItem("Inicio", Icons.Default.Dashboard),
+                            ClienteMenuItem("Mis Citas", Icons.Default.CalendarToday),
+                            ClienteMenuItem("Notificaciones", Icons.Default.Notifications)
                         )
 
                         menuItems.forEach { item ->
-                            CustomerNavigationItem(
+                            ClienteNavigationItem(
                                 item = item,
                                 isSelected = selectedItem == item.title,
                                 onClick = {
@@ -69,16 +77,18 @@ fun CustomerNavigationWrapper(role: String, content: @Composable () -> Unit) {
                             )
                         }
                         
-                        Spacer(modifier = Modifier.weight(1f))
+                        Spacer(Modifier.weight(1f))
                         
-                        // Botón Nueva Reserva
                         Button(
-                            onClick = { /* Nueva Reserva */ },
+                            onClick = { 
+                                currentSubScreen = "NewBooking"
+                                scope.launch { drawerState.close() }
+                            },
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null)
+                            Icon(Icons.Default.Add, null)
                             Spacer(Modifier.width(8.dp))
                             Text("NUEVA RESERVA", fontWeight = FontWeight.Bold)
                         }
@@ -97,55 +107,38 @@ fun CustomerNavigationWrapper(role: String, content: @Composable () -> Unit) {
                         },
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Default.Menu, contentDescription = "Menu")
+                                Icon(Icons.Default.Menu, null)
                             }
                         },
                         actions = {
-                            IconButton(onClick = { /* Ubicacion */ }) {
-                                Icon(Icons.Default.LocationOn, contentDescription = "Ubicacion", tint = Color.Gray)
-                            }
-                            
                             Box {
                                 IconButton(onClick = { isProfileMenuExpanded = true }) {
-                                    Icon(Icons.Default.AccountCircle, contentDescription = "Profile", tint = primaryColor)
+                                    Icon(Icons.Default.AccountCircle, null, tint = primaryColor, modifier = Modifier.size(32.dp))
                                 }
-                                
                                 DropdownMenu(
                                     expanded = isProfileMenuExpanded,
-                                    onDismissRequest = { isProfileMenuExpanded = false },
-                                    modifier = Modifier.background(Color.White, RoundedCornerShape(12.dp))
+                                    onDismissRequest = { isProfileMenuExpanded = false }
                                 ) {
                                     DropdownMenuItem(
-                                        text = { Text("Mi Perfil", fontWeight = FontWeight.Bold) },
-                                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray) },
-                                        onClick = {
-                                            isProfileMenuExpanded = false
-                                            showProfile = true
-                                        }
+                                        text = { Text("Mi Perfil") },
+                                        onClick = { isProfileMenuExpanded = false; showProfile = true }
                                     )
-                                    HorizontalDivider(color = Color(0xFFF1F5F9))
                                     DropdownMenuItem(
-                                        text = { Text("Cerrar Sesión", color = Color.Red, fontWeight = FontWeight.Bold) },
-                                        leadingIcon = { Icon(Icons.Default.Logout, contentDescription = null, tint = Color.Red) },
-                                        onClick = {
-                                            isProfileMenuExpanded = false
-                                            // Aquí deberías llamar a la lógica de logout (App.kt screenState = "LOGIN")
-                                        }
+                                        text = { Text("Cerrar Sesión") },
+                                        onClick = { isProfileMenuExpanded = false; onLogout() }
                                     )
                                 }
                             }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF8F6F6))
+                        }
                     )
                 }
             ) { paddingValues ->
                 Box(modifier = Modifier.padding(paddingValues)) {
-                    if (selectedItem == "Inicio") {
-                        CustomerDashboard()
-                    } else {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Modulo de $selectedItem - Próximamente", color = Color.Gray)
-                        }
+                    when(selectedItem) {
+                        "Inicio" -> ClienteDashboard()
+                        "Mis Citas" -> ClienteDashboard()
+                        "Notificaciones" -> ClienteNotificacionesView()
+                        else -> content()
                     }
                 }
             }
@@ -153,10 +146,10 @@ fun CustomerNavigationWrapper(role: String, content: @Composable () -> Unit) {
     }
 }
 
-data class CustomerMenuItem(val title: String, val icon: ImageVector)
+data class ClienteMenuItem(val title: String, val icon: ImageVector)
 
 @Composable
-fun CustomerNavigationItem(item: CustomerMenuItem, isSelected: Boolean, onClick: () -> Unit) {
+fun ClienteNavigationItem(item: ClienteMenuItem, isSelected: Boolean, onClick: () -> Unit) {
     val primaryColor = Color(0xFFD32F2F)
     val backgroundColor = if (isSelected) primaryColor else Color.Transparent
     val contentColor = if (isSelected) Color.White else Color.Gray
@@ -168,15 +161,10 @@ fun CustomerNavigationItem(item: CustomerMenuItem, isSelected: Boolean, onClick:
             .background(backgroundColor, RoundedCornerShape(12.dp))
             .clickable { onClick() }
             .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(item.icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(24.dp))
-        Text(
-            text = item.title,
-            color = contentColor,
-            fontSize = 14.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-        )
+        Icon(item.icon, null, tint = contentColor, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(item.title, color = contentColor, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium)
     }
 }

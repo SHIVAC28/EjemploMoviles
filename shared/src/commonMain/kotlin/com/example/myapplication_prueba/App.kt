@@ -1,104 +1,103 @@
 package com.example.myapplication_prueba
 
-import com.example.myapplication_prueba.cuenta.LoginView
-import com.example.myapplication_prueba.cuenta.RegisterView
-import com.example.myapplication_prueba.admin.AdminNavigationWrapper
-import com.example.myapplication_prueba.admin.FormularioCliente
-import com.example.myapplication_prueba.cliente.CustomerNavigationWrapper
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-
-import io.ktor.client.*
+import com.example.myapplication_prueba.admin.AdminNavigationWrapper
+import com.example.myapplication_prueba.admin.FormularioCliente
+import com.example.myapplication_prueba.cliente.ClienteDashboard
+import com.example.myapplication_prueba.cliente.ClienteNavigationWrapper
+import com.example.myapplication_prueba.cliente.PerfilView
+import com.example.myapplication_prueba.cuenta.LoginView
+import com.example.myapplication_prueba.cuenta.RegistroView
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
-import kotlinx.serialization.Serializable
-
-@Serializable
-data class Usuario(val id: Int = 0, val nombre: String, val rol: String)
-
-class KtorClient {
-    private val client = HttpClient {
-        install(ContentNegotiation) { json() }
-    }
-    private val urlBackend = "https://proyecto-backend-ktor-production.up.railway.app/usuarios"
-
-    suspend fun getUsuarios(): List<Usuario> {
-        return try { client.get(urlBackend).body() } catch (e: Exception) { emptyList() }
-    }
-    suspend fun crearUsuario(nombre: String, rol: String) {
-        try {
-            client.post(urlBackend) {
-                contentType(ContentType.Application.Json)
-                setBody(Usuario(nombre = nombre, rol = rol))
-            }
-        } catch (e: Exception) { e.printStackTrace() }
-    }
-    suspend fun eliminarUsuario(id: Int) {
-        try { client.delete("$urlBackend/$id") } catch (e: Exception) { e.printStackTrace() }
-    }
-}
+import kotlinx.coroutines.launch
 
 @Composable
-@Preview
 fun App() {
-    var screenState by remember { mutableStateOf("LOGIN") } // "LOGIN", "REGISTER", "MAIN"
-    var userRole by remember { mutableStateOf("CLIENTE") }
+    // Check for saved session IMMEDIATELY
+    val savedState = remember { SettingsManager.getString(SettingsManager.SCREEN_STATE) ?: "LOGIN" }
+    val savedRole = remember { SettingsManager.getString(SettingsManager.USER_ROLE) ?: "CLIENTE" }
+    
+    var screenState by remember { mutableStateOf(savedState) } 
+    var userRole by remember { mutableStateOf(savedRole) }
+    
+    // Restore ApiClient token if exists
+    LaunchedEffect(Unit) {
+        val savedToken = SettingsManager.getString(SettingsManager.SESSION_TOKEN)
+        if (!savedToken.isNullOrBlank()) {
+            ApiClient.sessionToken = savedToken
+        }
+    }
+
     var registrationSuccessMessage by remember { mutableStateOf<String?>(null) }
+    var currentSubScreen by remember { mutableStateOf<String?>(null) } // "SECURITY"
 
     MaterialTheme {
-        when (screenState) {
-            "LOGIN" -> {
-                LoginView(
-                    onRegisterClick = { screenState = "REGISTER" },
-                    onLoginSuccess = { role ->
-                        userRole = role
-                        screenState = "MAIN"
-                    },
-                    successMessage = registrationSuccessMessage
-                )
-                // Limpiamos el mensaje después de mostrarlo para que no se repita al volver a la pantalla
-                LaunchedEffect(registrationSuccessMessage) {
-                    if (registrationSuccessMessage != null) {
-                        kotlinx.coroutines.delay(6000)
-                        registrationSuccessMessage = null
+        if (currentSubScreen == "SECURITY") {
+            SeguridadView(email = if(userRole == "ADMIN") "admin@wolf.com" else "cliente@wolf.com") { 
+                currentSubScreen = null 
+            }
+        } else {
+            when (screenState) {
+                "LOGIN" -> {
+                    LoginView(
+                        onRegisterClick = { screenState = "REGISTER" },
+                        onLoginSuccess = { role ->
+                            userRole = role
+                            screenState = "MAIN"
+                            // Save session
+                            SettingsManager.saveString(SettingsManager.SCREEN_STATE, "MAIN")
+                            SettingsManager.saveString(SettingsManager.USER_ROLE, role)
+                            SettingsManager.saveString(SettingsManager.SESSION_TOKEN, ApiClient.sessionToken ?: "")
+                        },
+                        successMessage = registrationSuccessMessage
+                    )
+                    // Limpiamos el mensaje después de mostrarlo para que no se repita al volver a la pantalla
+                    LaunchedEffect(registrationSuccessMessage) {
+                        if (registrationSuccessMessage != null) {
+                            kotlinx.coroutines.delay(6000)
+                            registrationSuccessMessage = null
+                        }
                     }
                 }
-            }
-            "REGISTER" -> {
-                RegisterView(
-                    onNavigateToLogin = { screenState = "LOGIN" },
-                    onRegisterSuccess = { 
-                        registrationSuccessMessage = "¡Cuenta creada con éxito! Ya puedes iniciar sesión."
-                        screenState = "LOGIN" 
+                "REGISTER" -> {
+                    RegistroView(
+                        onNavigateToLogin = { screenState = "LOGIN" },
+                        onRegisterSuccess = { 
+                            registrationSuccessMessage = "¡Cuenta creada con éxito! Ya puedes iniciar sesión."
+                            screenState = "LOGIN" 
+                        }
+                    )
+                }
+                "MAIN" -> {
+                    val onLogoutAction = {
+                        SettingsManager.saveString(SettingsManager.SCREEN_STATE, "LOGIN")
+                        SettingsManager.saveString(SettingsManager.SESSION_TOKEN, "")
+                        ApiClient.sessionToken = null
+                        screenState = "LOGIN"
                     }
-                )
-            }
-            "MAIN" -> {
-                if (userRole == "ADMIN") {
-                    AdminNavigationWrapper(role = userRole) {
-                        MainContent(userRole)
+                    
+                    when(userRole) {
+                        "ADMIN" -> AdminNavigationWrapper(role = userRole, onLogout = onLogoutAction) {
+                            MainContent(role = userRole, onLogout = onLogoutAction, onNavigateToSecurity = { currentSubScreen = "SECURITY" })
+                        }
+                        "BARBERO" -> com.example.myapplication_prueba.barbero.BarberoNavigationWrapper(role = userRole, onLogout = onLogoutAction) {
+                            MainContent(role = userRole, onLogout = onLogoutAction, onNavigateToSecurity = { currentSubScreen = "SECURITY" })
+                        }
+                        else -> ClienteNavigationWrapper(
+                            role = userRole,
+                            onLogout = onLogoutAction,
+                            content = {
+                                MainContent(role = userRole, onLogout = onLogoutAction, onNavigateToSecurity = { currentSubScreen = "SECURITY" })
+                            }
+                        )
                     }
-                } else if (userRole == "CLIENTE") {
-                    CustomerNavigationWrapper(role = userRole) {
-                        MainContent(userRole)
-                    }
-                } else {
-                    MainContent(userRole)
                 }
             }
         }
@@ -106,40 +105,40 @@ fun App() {
 }
 
 @Composable
-fun MainContent(role: String) {
-    var pestañaSeleccionada by remember { mutableStateOf(0) }
+fun MainContent(role: String, onLogout: () -> Unit, onNavigateToSecurity: () -> Unit) {
+    var pestanaSeleccionada by remember { mutableStateOf(0) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = pestañaSeleccionada) {
+        TabRow(selectedTabIndex = pestanaSeleccionada) {
             when (role) {
                 "ADMIN" -> {
-                    Tab(selected = pestañaSeleccionada == 0, onClick = { pestañaSeleccionada = 0 }, text = { Text("Usuarios") })
-                    Tab(selected = pestañaSeleccionada == 1, onClick = { pestañaSeleccionada = 1 }, text = { Text("Clientes") })
+                    Tab(selected = pestanaSeleccionada == 0, onClick = { pestanaSeleccionada = 0 }, text = { Text("Usuarios") })
+                    Tab(selected = pestanaSeleccionada == 1, onClick = { pestanaSeleccionada = 1 }, text = { Text("Clientes") })
                 }
                 "BARBERO" -> {
-                    Tab(selected = pestañaSeleccionada == 0, onClick = { pestañaSeleccionada = 0 }, text = { Text("Clientes") })
-                    Tab(selected = pestañaSeleccionada == 1, onClick = { pestañaSeleccionada = 1 }, text = { Text("Mi Agenda") })
+                    Tab(selected = pestanaSeleccionada == 0, onClick = { pestanaSeleccionada = 0 }, text = { Text("Clientes") })
+                    Tab(selected = pestanaSeleccionada == 1, onClick = { pestanaSeleccionada = 1 }, text = { Text("Mi Agenda") })
                 }
                 else -> { // CLIENTE o cualquier otro
-                    Tab(selected = pestañaSeleccionada == 0, onClick = { pestañaSeleccionada = 0 }, text = { Text("Mis Citas") })
-                    Tab(selected = pestañaSeleccionada == 1, onClick = { pestañaSeleccionada = 1 }, text = { Text("Perfil") })
+                    Tab(selected = pestanaSeleccionada == 0, onClick = { pestanaSeleccionada = 0 }, text = { Text("Mis Citas") })
+                    Tab(selected = pestanaSeleccionada == 1, onClick = { pestanaSeleccionada = 1 }, text = { Text("Perfil") })
                 }
             }
         }
 
         Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             when (role) {
-                "ADMIN" -> when (pestañaSeleccionada) {
-                    0 -> ModuloUsuariosCompañero()
+                "ADMIN" -> when (pestanaSeleccionada) {
+                    0 -> ModuloUsuariosCompanero()
                     1 -> FormularioCliente()
                 }
-                "BARBERO" -> when (pestañaSeleccionada) {
+                "BARBERO" -> when (pestanaSeleccionada) {
                     0 -> FormularioCliente()
                     1 -> Text("Agenda del Barbero - Próximamente")
                 }
-                else -> when (pestañaSeleccionada) {
-                    0 -> Text("Bienvenido! Aquí verás tus citas.")
-                    1 -> Text("Perfil del Cliente - Próximamente")
+                else -> when (pestanaSeleccionada) {
+                    0 -> ClienteDashboard()
+                    1 -> PerfilView(onBack = { pestanaSeleccionada = 0 }, onNavigateToSecurity = onNavigateToSecurity)
                 }
             }
         }
@@ -153,126 +152,57 @@ fun FormularioCliente() {
     var cumpleanos by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
     var correo by remember { mutableStateOf("") }
-
+    var mensaje by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Registro de Clientes",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        Text("Registrar Cliente", style = MaterialTheme.typography.headlineMedium)
+        Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedTextField(value = nombre, onValueChange = { nombre = it }, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(value = apellido, onValueChange = { apellido = it }, label = { Text("Apellido") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(value = cumpleanos, onValueChange = { cumpleanos = it }, label = { Text("Fecha de Cumpleaños") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = { Text("Teléfono") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(value = correo, onValueChange = { correo = it }, label = { Text("Correo Electrónico") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(value = nombre, onValueChange = { nombre = it }, label = { Text("Nombre") })
+        OutlinedTextField(value = apellido, onValueChange = { apellido = it }, label = { Text("Apellido") })
+        OutlinedTextField(value = cumpleanos, onValueChange = { cumpleanos = it }, label = { Text("Cumpleaños (AAAA-MM-DD)") })
+        OutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = { Text("Teléfono") })
+        OutlinedTextField(value = correo, onValueChange = { correo = it }, label = { Text("Correo") })
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(
-            onClick = {
-                coroutineScope.launch {
-                    val resultado = Greeting().enviarCliente(nombre, apellido, cumpleanos, telefono, correo)
-                    println("Respuesta de Railway: $resultado")
-                    if(resultado.contains("éxito")){
-                        nombre = ""; apellido = ""; cumpleanos = ""; telefono = ""; correo = ""
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth().height(50.dp)
-        ) {
-            Text("Guardar Cliente", fontSize = 16.sp)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = {
+            coroutineScope.launch {
+                mensaje = Greeting().enviarCliente(nombre, apellido, cumpleanos, telefono, correo)
+            }
+        }) {
+            Text("Enviar")
         }
+        Text(mensaje)
     }
 }
 
 @Composable
-fun ModuloUsuariosCompañero() {
-    val client = remember { KtorClient() }
+fun ModuloUsuariosCompanero() {
+    var usuarios by remember { mutableStateOf(listOf<UsuarioPrueba>()) }
     val scope = rememberCoroutineScope()
-
-    var usuarios by remember { mutableStateOf<List<Usuario>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-
-    var nombre by remember { mutableStateOf("") }
-    var rol by remember { mutableStateOf("") }
+    val greeting = remember { Greeting() }
 
     LaunchedEffect(Unit) {
-        try { usuarios = client.getUsuarios() } catch (e: Exception) { e.printStackTrace() } finally { loading = false }
+        // Podríamos exponer una función en Greeting para esto o usar ApiClient directamente
+        // Para simplificar, usaremos Greeting().greet() que ya hace un GET /usuarios
+        // Pero idealmente Greeting debería tener un método getUsuarios()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("GESTIÓN DE USUARIOS", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
-
-        Spacer(Modifier.height(16.dp))
-
-        TextField(value = nombre, onValueChange = { nombre = it }, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(8.dp))
-        TextField(value = rol, onValueChange = { rol = it }, label = { Text("Rol") }, modifier = Modifier.fillMaxWidth())
-
-        Spacer(Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                scope.launch {
-                    client.crearUsuario(nombre, rol)
-                    usuarios = client.getUsuarios()
-                    nombre = ""
-                    val resultado = rol
-                    rol = ""
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Crear usuario")
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        if (loading) {
-            CircularProgressIndicator()
-        } else {
-            usuarios.forEach { usuario ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("${usuario.nombre} - ${usuario.rol}", modifier = Modifier.weight(1f))
-
-                    Button(
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                        onClick = {
-                            scope.launch {
-                                client.eliminarUsuario(usuario.id)
-                                usuarios = client.getUsuarios()
-                            }
-                        }
-                    ) {
-                        Text("Borrar", fontSize = 12.sp)
+    Column {
+        Text("Gestión de Usuarios", style = MaterialTheme.typography.headlineMedium)
+        usuarios.forEach { user ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${user.nombre} - ${user.rol}")
+                IconButton(onClick = {
+                    scope.launch {
+                        // Lógica para eliminar si fuera necesario
                     }
+                }) {
+                    // Icon(Icons.Default.Delete, contentDescription = "Eliminar")
                 }
             }
         }
