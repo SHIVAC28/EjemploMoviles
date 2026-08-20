@@ -3,9 +3,10 @@ package com.example.myapplication_prueba.cliente
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,7 +17,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.myapplication_prueba.SeguridadView
+import com.example.myapplication_prueba.Greeting
+import com.example.myapplication_prueba.admin.MenuItem
+import com.example.myapplication_prueba.admin.NavigationItem
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -24,19 +27,16 @@ import kotlinx.coroutines.launch
 fun ClienteNavigationWrapper(role: String, onLogout: () -> Unit, content: @Composable () -> Unit) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    var selectedItem by remember { mutableStateOf("Inicio") }
-    var isProfileMenuExpanded by remember { mutableStateOf(false) }
-    var showProfile by remember { mutableStateOf(false) }
-    var currentSubScreen by remember { mutableStateOf<String?>(null) } // "Security", "NewBooking"
+    var selectedItem by remember { mutableStateOf("Mis Citas") }
     
-    val primaryColor = Color(0xFFD32F2F)
+    // Sub-screens
+    var showProfile by remember { mutableStateOf(false) }
+    var currentSubScreen by remember { mutableStateOf<String?>(null) } // "NewBooking"
 
-    if (currentSubScreen == "Security") {
-        SeguridadView(email = "cliente@wolf.com", onBack = { currentSubScreen = null })
+    if (showProfile) {
+        PerfilView(onBack = { showProfile = false }, onNavigateToSecurity = {})
     } else if (currentSubScreen == "NewBooking") {
         NuevaCitaView(onBack = { currentSubScreen = null })
-    } else if (showProfile) {
-        PerfilView(onBack = { showProfile = false }, onNavigateToSecurity = { currentSubScreen = "Security" })
     } else {
         ModalNavigationDrawer(
             drawerState = drawerState,
@@ -46,28 +46,33 @@ fun ClienteNavigationWrapper(role: String, onLogout: () -> Unit, content: @Compo
                     drawerContainerColor = Color.White
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        // Header
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.padding(bottom = 32.dp, top = 16.dp)
                         ) {
-                            Box(modifier = Modifier.size(40.dp).background(primaryColor, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                            Box(
+                                modifier = Modifier.size(40.dp).background(Color(0xFFDC2626), RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Icon(Icons.Default.ContentCut, null, tint = Color.White)
                             }
                             Column {
                                 Text("Wolf-Look", fontWeight = FontWeight.Black, fontSize = 20.sp)
-                                Text("CLIENTE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("ÁREA DE CLIENTE", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
-                        val menuItems = listOf(
-                            ClienteMenuItem("Inicio", Icons.Default.Dashboard),
-                            ClienteMenuItem("Mis Citas", Icons.Default.CalendarToday),
-                            ClienteMenuItem("Notificaciones", Icons.Default.Notifications)
+                        // Menú
+                        val items = listOf(
+                            MenuItem("Mis Citas", Icons.Default.CalendarToday),
+                            MenuItem("Servicios", Icons.Default.DryCleaning),
+                            MenuItem("Productos", Icons.Default.Inventory2)
                         )
 
-                        menuItems.forEach { item ->
-                            ClienteNavigationItem(
+                        items.forEach { item ->
+                            NavigationItem(
                                 item = item,
                                 isSelected = selectedItem == item.title,
                                 onClick = {
@@ -76,17 +81,17 @@ fun ClienteNavigationWrapper(role: String, onLogout: () -> Unit, content: @Compo
                                 }
                             )
                         }
-                        
-                        Spacer(Modifier.weight(1f))
-                        
+
+                        Spacer(modifier = Modifier.weight(1f))
+
                         Button(
                             onClick = { 
-                                currentSubScreen = "NewBooking"
                                 scope.launch { drawerState.close() }
+                                currentSubScreen = "NewBooking"
                             },
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
                         ) {
                             Icon(Icons.Default.Add, null)
                             Spacer(Modifier.width(8.dp))
@@ -100,10 +105,7 @@ fun ClienteNavigationWrapper(role: String, onLogout: () -> Unit, content: @Compo
                 topBar = {
                     TopAppBar(
                         title = {
-                            Column {
-                                Text(selectedItem, fontSize = 20.sp, fontWeight = FontWeight.Black)
-                                Text("Wolf-Look Barbershop", fontSize = 12.sp, color = Color.Gray)
-                            }
+                            Text(selectedItem, fontSize = 20.sp, fontWeight = FontWeight.Black)
                         },
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
@@ -111,33 +113,19 @@ fun ClienteNavigationWrapper(role: String, onLogout: () -> Unit, content: @Compo
                             }
                         },
                         actions = {
-                            Box {
-                                IconButton(onClick = { isProfileMenuExpanded = true }) {
-                                    Icon(Icons.Default.AccountCircle, null, tint = primaryColor, modifier = Modifier.size(32.dp))
-                                }
-                                DropdownMenu(
-                                    expanded = isProfileMenuExpanded,
-                                    onDismissRequest = { isProfileMenuExpanded = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Mi Perfil") },
-                                        onClick = { isProfileMenuExpanded = false; showProfile = true }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Cerrar Sesión") },
-                                        onClick = { isProfileMenuExpanded = false; onLogout() }
-                                    )
-                                }
+                            IconButton(onClick = { showProfile = true }) {
+                                Icon(Icons.Default.AccountCircle, null, tint = Color(0xFFDC2626), modifier = Modifier.size(32.dp))
                             }
-                        }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF8F6F6))
                     )
                 }
-            ) { paddingValues ->
-                Box(modifier = Modifier.padding(paddingValues)) {
-                    when(selectedItem) {
-                        "Inicio" -> ClienteDashboard()
-                        "Mis Citas" -> ClienteDashboard()
-                        "Notificaciones" -> ClienteNotificacionesView()
+            ) { padding ->
+                Box(modifier = Modifier.padding(padding)) {
+                    when (selectedItem) {
+                        "Mis Citas" -> MisCitasView(onNavigateToNew = { currentSubScreen = "NewBooking" })
+                        "Servicios" -> ClienteServiciosView()
+                        "Productos" -> ClienteProductosView()
                         else -> content()
                     }
                 }
@@ -146,25 +134,70 @@ fun ClienteNavigationWrapper(role: String, onLogout: () -> Unit, content: @Compo
     }
 }
 
-data class ClienteMenuItem(val title: String, val icon: ImageVector)
-
 @Composable
-fun ClienteNavigationItem(item: ClienteMenuItem, isSelected: Boolean, onClick: () -> Unit) {
-    val primaryColor = Color(0xFFD32F2F)
-    val backgroundColor = if (isSelected) primaryColor else Color.Transparent
-    val contentColor = if (isSelected) Color.White else Color.Gray
+fun MisCitasView(onNavigateToNew: () -> Unit) {
+    val coroutineScope = rememberCoroutineScope()
+    var appointments by remember { mutableStateOf<List<com.example.myapplication_prueba.Appointment>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .background(backgroundColor, RoundedCornerShape(12.dp))
-            .clickable { onClick() }
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(item.icon, null, tint = contentColor, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(12.dp))
-        Text(item.title, color = contentColor, fontSize = 14.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium)
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            isLoading = true
+            appointments = Greeting().getClientAppointments()
+            isLoading = false
+        }
+    }
+
+    Box(Modifier.fillMaxSize().background(Color(0xFFF8F6F6)).padding(16.dp)) {
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color(0xFFDC2626))
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                // Hero Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(Modifier.padding(24.dp)) {
+                        Text("TU PRÓXIMO ESTILO", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Está a un clic.", fontSize = 28.sp, fontWeight = FontWeight.Black)
+                        Spacer(Modifier.height(16.dp))
+                        Button(
+                            onClick = onNavigateToNew,
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                        ) {
+                            Text("AGENDAR AHORA", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Text("HISTORIAL DE CITAS", fontWeight = FontWeight.Black, fontSize = 16.sp, color = Color.Gray)
+
+                if (appointments.isEmpty()) {
+                    Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        Text("Aún no tienes citas agendadas", color = Color.Gray, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        appointments.forEach { app ->
+                            com.example.myapplication_prueba.cliente.ServicioCard(
+                                com.example.myapplication_prueba.cliente.ServicioData(
+                                    title = app.serviceName ?: app.service?.nombre ?: "Servicio",
+                                    dateTime = "${app.date} - ${app.startTime}",
+                                    price = app.totalPrice.toString(),
+                                    status = app.status
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }

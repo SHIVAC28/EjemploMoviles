@@ -92,11 +92,10 @@ fun App() {
                         }
                         else -> ClienteNavigationWrapper(
                             role = userRole,
-                            onLogout = onLogoutAction,
-                            content = {
-                                MainContent(role = userRole, onLogout = onLogoutAction, onNavigateToSecurity = { currentSubScreen = "SECURITY" })
-                            }
-                        )
+                            onLogout = onLogoutAction
+                        ) {
+                            MainContent(role = userRole, onLogout = onLogoutAction, onNavigateToSecurity = { currentSubScreen = "SECURITY" })
+                        }
                     }
                 }
             }

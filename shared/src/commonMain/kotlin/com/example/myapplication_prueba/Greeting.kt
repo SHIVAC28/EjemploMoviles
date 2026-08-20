@@ -180,10 +180,10 @@ data class Promotion(
     @SerialName("precio_promocional") val precioPromocional: Double,
     val activo: Boolean = true,
     @SerialName("imagen_url") val imagenUrl: String? = null,
-    @SerialName("fecha_inicio") val fechaInicio: String,
-    @SerialName("fecha_final") val fechaFinal: String,
+    val fechaInicio: String,
+    val fechaFinal: String,
     @SerialName("selected_service_ids") val selectedServiceIds: List<Int> = emptyList(),
-    @SerialName("nombre_servicios") val nombreServicios: List<String> = emptyList()
+    @SerialName("nombre_servicios") val nombreServicios: List<String> = emptySet<String>().toList()
 )
 
 @Serializable
@@ -210,6 +210,15 @@ data class InventoryStats(
     @SerialName("total_products") val totalProducts: Int,
     @SerialName("low_stock") val lowStock: Int,
     @SerialName("inventory_value") val inventoryValue: Double
+)
+
+@Serializable
+data class DashboardStats(
+    val ingresos: Double,
+    val citas: Int,
+    val equipo: Int,
+    val activos: Int,
+    @SerialName("porcentaje_meta") val porcentajeMeta: Double
 )
 
 @Serializable
@@ -304,33 +313,6 @@ data class AvailableBarbersResponse(
 )
 
 @Serializable
-data class VentaExpressRequest(
-    @SerialName("usuario_id") val usuarioId: Int? = null,
-    @SerialName("barbero_id") val barberoId: Int,
-    @SerialName("servicios_nombres") val serviciosNombres: List<String>,
-    val productos: List<ProductoVenta>,
-    @SerialName("total_pagar") val totalPagar: Double,
-    @SerialName("metodo_pago") val metodoPago: String,
-    @SerialName("es_ocasional") val esOcasional: Boolean,
-    @SerialName("cliente_nombre") val clienteNombre: String? = null
-)
-
-@Serializable
-data class ProductoVenta(
-    val id: Int,
-    val cantidad: Int
-)
-
-@Serializable
-data class DashboardStats(
-    val ingresos: Double,
-    val citas: Int,
-    val equipo: Int,
-    val activos: Int,
-    @SerialName("porcentaje_meta") val porcentajeMeta: Double
-)
-
-@Serializable
 data class RescheduleRequest(
     val fecha: String,
     @SerialName("hora_inicio") val horaInicio: String
@@ -353,6 +335,24 @@ data class Appointment(
     @SerialName("precio") val totalPrice: Double = 0.0,
     @SerialName("metodo_pago") val paymentMethod: String? = null,
     val duracion: Int = 30
+)
+
+@Serializable
+data class VentaExpressRequest(
+    @SerialName("usuario_id") val usuarioId: Int? = null,
+    @SerialName("barbero_id") val barberoId: Int,
+    @SerialName("servicios_nombres") val serviciosNombres: List<String>,
+    val productos: List<ProductoVenta>,
+    @SerialName("total_pagar") val totalPagar: Double,
+    @SerialName("metodo_pago") val metodoPago: String,
+    @SerialName("es_ocasional") val esOcasional: Boolean,
+    @SerialName("cliente_nombre") val clienteNombre: String? = null
+)
+
+@Serializable
+data class ProductoVenta(
+    val id: Int,
+    val cantidad: Int
 )
 
 // --- CLIENTE API ---
@@ -1304,5 +1304,42 @@ class Greeting {
         } catch (e: Exception) {
             RegisterResponse(false, "Error de red: ${e.message}")
         }
+    }
+
+    // --- CLIENT ENDPOINTS ---
+
+    suspend fun getClientAppointments(): List<Appointment> {
+        return try {
+            val response = getClient().get("$baseUrl/client/appointments")
+            if (response.status == HttpStatusCode.OK) response.body() else emptyList()
+        } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun getBarberAvailability(barberId: Int, date: String): List<String> {
+        return try {
+            val response = getClient().get("$baseUrl/client/barbers/$barberId/availability") {
+                parameter("date", date)
+            }
+            if (response.status == HttpStatusCode.OK) {
+                response.body<List<String>>()
+            } else emptyList()
+        } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun createClientBooking(barberId: Int, serviceId: Int?, promotionId: Int?, date: String, time: String): RegisterResponse {
+        return try {
+            val payload = mapOf(
+                "barber_id" to barberId,
+                "service_id" to serviceId,
+                "promotion_id" to promotionId,
+                "fecha" to date,
+                "hora_inicio" to time
+            )
+            val response = getClient().post("$baseUrl/client/booking") {
+                setBody(payload)
+            }
+            if (response.status.isSuccess()) RegisterResponse(true, "Cita agendada")
+            else RegisterResponse(false, response.bodyAsText())
+        } catch (e: Exception) { RegisterResponse(false, "Error de red") }
     }
 }
