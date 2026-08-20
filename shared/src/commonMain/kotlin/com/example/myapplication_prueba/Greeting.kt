@@ -263,18 +263,96 @@ data class GhostAppointmentRequest(
 )
 
 @Serializable
+data class AdminAppointmentRequest(
+    @SerialName("usuario_id") val usuarioId: Int? = null,
+    @SerialName("es_ocasional") val esOcasional: Boolean,
+    @SerialName("cliente_nombre") val clienteNombre: String? = null,
+    @SerialName("cliente_telefono") val clienteTelefono: String? = null,
+    @SerialName("barbero_id") val barberoId: Int,
+    @SerialName("servicio_nombre") val servicioNombre: String,
+    val fecha: String,
+    @SerialName("hora_inicio") val horaInicio: String,
+    val duracion: Int,
+    val precio: Double,
+    @SerialName("metodo_pago") val metodoPago: String
+)
+
+@Serializable
+data class AvailabilityRequest(
+    val fecha: String,
+    @SerialName("hora_inicio") val horaInicio: String,
+    val duracion: Int
+)
+
+@Serializable
+data class AvailableTimesResponse(
+    val success: Boolean,
+    val times: List<String>
+)
+
+@Serializable
+data class AvailableBarber(
+    val id: Int,
+    val nombre: String,
+    @SerialName("imagen_url") val imagenUrl: String? = null
+)
+
+@Serializable
+data class AvailableBarbersResponse(
+    val success: Boolean,
+    val barbers: List<AvailableBarber>
+)
+
+@Serializable
+data class VentaExpressRequest(
+    @SerialName("usuario_id") val usuarioId: Int? = null,
+    @SerialName("barbero_id") val barberoId: Int,
+    @SerialName("servicios_nombres") val serviciosNombres: List<String>,
+    val productos: List<ProductoVenta>,
+    @SerialName("total_pagar") val totalPagar: Double,
+    @SerialName("metodo_pago") val metodoPago: String,
+    @SerialName("es_ocasional") val esOcasional: Boolean,
+    @SerialName("cliente_nombre") val clienteNombre: String? = null
+)
+
+@Serializable
+data class ProductoVenta(
+    val id: Int,
+    val cantidad: Int
+)
+
+@Serializable
+data class DashboardStats(
+    val ingresos: Double,
+    val citas: Int,
+    val equipo: Int,
+    val activos: Int,
+    @SerialName("porcentaje_meta") val porcentajeMeta: Double
+)
+
+@Serializable
+data class RescheduleRequest(
+    val fecha: String,
+    @SerialName("hora_inicio") val horaInicio: String
+)
+
+@Serializable
 data class Appointment(
     val id: Int,
     val customer: Cliente? = null,
-    val date: String,
-    val startTime: String,
-    val endTime: String? = null,
-    val status: String,
+    @SerialName("cliente_nombre") val clienteNombre: String? = null,
+    @SerialName("cliente_telefono") val clienteTelefono: String? = null,
+    @SerialName("fecha") val date: String,
+    @SerialName("hora_inicio") val startTime: String,
+    @SerialName("hora_final") val endTime: String? = null,
+    @SerialName("status") val status: String = "Programada",
+    @SerialName("servicio_nombre") val serviceName: String? = null,
     val service: Service? = null,
     val barber: Barber? = null,
     val promotion: String? = null,
-    val totalPrice: Double = 0.0,
-    val paymentMethod: String? = null
+    @SerialName("precio") val totalPrice: Double = 0.0,
+    @SerialName("metodo_pago") val paymentMethod: String? = null,
+    val duracion: Int = 30
 )
 
 // --- CLIENTE API ---
@@ -1122,5 +1200,109 @@ class Greeting {
             if (response.status.isSuccess()) RegisterResponse(true, "Huella vinculada")
             else RegisterResponse(false, "Error al vincular")
         } catch (e: Exception) { RegisterResponse(false, "Error de red") }
+    }
+
+    suspend fun getAvailableTimes(date: String, duration: Int): List<String> {
+        return try {
+            val response = getClient().get("$baseUrl/admin/reservas/horarios-disponibles") {
+                parameter("fecha", date)
+                parameter("duracion", duration)
+            }
+            if (response.status == HttpStatusCode.OK) {
+                response.body<List<String>>()
+            } else emptyList()
+        } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun getAvailableBarbers(fecha: String, horaInicio: String, duracion: Int): List<AvailableBarber> {
+        return try {
+            val response = getClient().post("$baseUrl/admin/reservas/disponibilidad") {
+                setBody(AvailabilityRequest(fecha, horaInicio, duracion))
+            }
+            if (response.status == HttpStatusCode.OK) {
+                response.body<List<AvailableBarber>>()
+            } else emptyList()
+        } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun createAdminAppointment(request: AdminAppointmentRequest): RegisterResponse {
+        return try {
+            val response = getClient().post("$baseUrl/admin/reservas") {
+                setBody(request)
+            }
+            if (response.status.isSuccess()) {
+                RegisterResponse(true, "Cita agendada")
+            } else {
+                RegisterResponse(false, response.bodyAsText())
+            }
+        } catch (e: Exception) { RegisterResponse(false, "Error de red: ${e.message}") }
+    }
+
+    suspend fun getDailyAppointments(date: String): List<Appointment> {
+        return try {
+            val response = getClient().get("$baseUrl/admin/citas/dia") {
+                parameter("fecha", date)
+            }
+            val responseText = response.bodyAsText()
+            println("DEBUG: Agenda recibida ($date): $responseText")
+            
+            if (response.status == HttpStatusCode.OK) {
+                Json { ignoreUnknownKeys = true }.decodeFromString<List<Appointment>>(responseText)
+            } else emptyList()
+        } catch (e: Exception) {
+            println("DEBUG: Error al procesar agenda: ${e.message}")
+            emptyList()
+        }
+    }
+
+    suspend fun getDashboardStats(): DashboardStats? {
+        return try {
+            val response = getClient().get("$baseUrl/admin/dashboard/stats")
+            if (response.status == HttpStatusCode.OK) {
+                response.body<DashboardStats>()
+            } else null
+        } catch (e: Exception) { null }
+    }
+
+    suspend fun getPendingAppointmentsToday(): List<Appointment> {
+        return try {
+            val response = getClient().get("$baseUrl/admin/citas/pendientes-hoy")
+            if (response.status == HttpStatusCode.OK) response.body() else emptyList()
+        } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun updateCitaEstado(id: Int, estado: String): RegisterResponse {
+        return try {
+            val response = getClient().post("$baseUrl/admin/citas/$id/estado") {
+                setBody(mapOf("estado" to estado))
+            }
+            if (response.status.isSuccess()) RegisterResponse(true, "Cita $estado")
+            else RegisterResponse(false, response.bodyAsText())
+        } catch (e: Exception) { RegisterResponse(false, "Error de red") }
+    }
+
+    suspend fun rescheduleAppointment(id: Int, date: String, time: String): RegisterResponse {
+        return try {
+            val response = getClient().put("$baseUrl/admin/citas/$id/reprogramar") {
+                setBody(RescheduleRequest(date, time))
+            }
+            if (response.status.isSuccess()) RegisterResponse(true, "Cita reprogramada")
+            else RegisterResponse(false, response.bodyAsText())
+        } catch (e: Exception) { RegisterResponse(false, "Error de red") }
+    }
+
+    suspend fun processVentaExpress(request: VentaExpressRequest): RegisterResponse {
+        return try {
+            val response = getClient().post("$baseUrl/admin/venta-express") {
+                setBody(request)
+            }
+            if (response.status.isSuccess()) {
+                RegisterResponse(true, "Venta realizada con éxito")
+            } else {
+                RegisterResponse(false, response.bodyAsText())
+            }
+        } catch (e: Exception) {
+            RegisterResponse(false, "Error de red: ${e.message}")
+        }
     }
 }

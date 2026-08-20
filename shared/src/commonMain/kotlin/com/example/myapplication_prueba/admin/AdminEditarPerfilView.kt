@@ -95,53 +95,6 @@ fun AdminEditarPerfilView(perfil: PerfilAdmin?, onBack: () -> Unit) {
                         EditField("EMAIL", email, { email = it }, Modifier.weight(1f), KeyboardType.Email)
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Seguridad Section
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.LockReset, contentDescription = null, tint = primaryColor)
-                        Text("SEGURIDAD", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Nueva Contraseña (Dejar en blanco para no cambiar)", fontSize = 10.sp, color = Color.Gray)
-                        
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            placeholder = { Text("••••••••") },
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        Text("Confirmar Nueva Contraseña", fontSize = 10.sp, color = Color.Gray)
-                        OutlinedTextField(
-                            value = confirmPassword,
-                            onValueChange = { confirmPassword = it },
-                            placeholder = { Text("••••••••") },
-                            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                                    Icon(if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        
-                        if (password != confirmPassword && confirmPassword.isNotEmpty()) {
-                            Text("Las contraseñas no coinciden", color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -160,36 +113,28 @@ fun AdminEditarPerfilView(perfil: PerfilAdmin?, onBack: () -> Unit) {
                                     return@Button
                                 }
                                 
-                                if (password == confirmPassword) {
-                                    isLoading = true
-                                    coroutineScope.launch {
-                                        val result = Greeting().updateAdminProfile(
-                                            AdminProfileUpdateRequest(
-                                                nombres = nombres,
-                                                apellidos = apellidos,
-                                                email = email,
-                                                telefono = telefono,
-                                                password = if (password.isNotBlank()) password else null
-                                            )
+                                isLoading = true
+                                coroutineScope.launch {
+                                    val result = Greeting().updateAdminProfile(
+                                        AdminProfileUpdateRequest(
+                                            nombres = nombres,
+                                            apellidos = apellidos,
+                                            email = email,
+                                            telefono = telefono,
+                                            password = null // No password change here as section was removed
                                         )
-                                        
-                                        if (result.success) {
-                                            toastType = ToastType.SUCCESS
-                                            toastMessage = "Perfil actualizado con éxito"
-                                            password = ""
-                                            confirmPassword = ""
-                                            // Opcional: Volver atrás automáticamente tras éxito después de un delay
-                                            kotlinx.coroutines.delay(1500)
-                                            onBack()
-                                        } else {
-                                            toastType = ToastType.ERROR
-                                            toastMessage = result.message
-                                        }
-                                        isLoading = false
+                                    )
+                                    
+                                    if (result.success) {
+                                        toastType = ToastType.SUCCESS
+                                        toastMessage = "Perfil actualizado con éxito"
+                                        kotlinx.coroutines.delay(1500)
+                                        onBack()
+                                    } else {
+                                        toastType = ToastType.ERROR
+                                        toastMessage = result.message
                                     }
-                                } else {
-                                    toastMessage = "Las contraseñas no coinciden"
-                                    toastType = ToastType.ERROR
+                                    isLoading = false
                                 }
                             },
                             modifier = Modifier.weight(1f).height(56.dp),

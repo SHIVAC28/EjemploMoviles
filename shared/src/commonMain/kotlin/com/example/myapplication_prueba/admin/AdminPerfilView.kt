@@ -139,18 +139,6 @@ fun AdminPerfilView(onBack: () -> Unit, onNavigateToSecurity: () -> Unit) {
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                         CuentaActivaCard(currentAdmin, onEditClick = { isEditing = true })
 
-                        // Botón a Seguridad
-                        Button(
-                            onClick = onNavigateToSecurity,
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.Security, null)
-                            Spacer(Modifier.width(12.dp))
-                            Text("SEGURIDAD Y ACCESO", fontWeight = FontWeight.Bold)
-                        }
-
                         AdministradoresCard(
                             adminList = adminList,
                             currentAdminEmail = currentAdmin?.email ?: "",

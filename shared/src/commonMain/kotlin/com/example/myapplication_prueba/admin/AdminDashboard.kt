@@ -21,15 +21,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun AdminDashboard() {
     val coroutineScope = rememberCoroutineScope()
-    var stats by remember { mutableStateOf(ReportStats(0, 0.0)) }
-    var barberStats by remember { mutableStateOf(BarberStats(0, 0, 0)) }
+    var dashboardStats by remember { mutableStateOf<DashboardStats?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         coroutineScope.launch {
-            // Simplified fetch
-            stats = Greeting().getReportStats("2024-01-01", "2024-12-31", null, null)
-            barberStats = Greeting().getBarberStats()
+            dashboardStats = Greeting().getDashboardStats()
             isLoading = false
         }
     }
@@ -38,23 +35,28 @@ fun AdminDashboard() {
         if (isLoading) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color(0xFFDC2626))
         } else {
+            val stats = dashboardStats ?: DashboardStats(0.0, 0, 0, 0, 0.0)
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("Resumen General", fontWeight = FontWeight.Black, fontSize = 20.sp)
                 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatCard("Ingresos", "$${stats.totalIncome}", Icons.Default.Payments, Color(0xFF10B981), Modifier.weight(1f))
-                    StatCard("Citas", "${stats.totalApps}", Icons.Default.Event, Color(0xFFDC2626), Modifier.weight(1f))
+                    StatCard("Ingresos", "$${stats.ingresos}", Icons.Default.Payments, Color(0xFF10B981), Modifier.weight(1f))
+                    StatCard("Citas", "${stats.citas}", Icons.Default.Event, Color(0xFFDC2626), Modifier.weight(1f))
                 }
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatCard("Equipo", "${barberStats.totalBarbers}", Icons.Default.Face, Color(0xFF6366F1), Modifier.weight(1f))
-                    StatCard("Activos", "${barberStats.activeBarbers}", Icons.Default.CheckCircle, Color(0xFFF59E0B), Modifier.weight(1f))
+                    StatCard("Equipo", "${stats.equipo}", Icons.Default.Face, Color(0xFF6366F1), Modifier.weight(1f))
+                    StatCard("Activos", "${stats.activos}", Icons.Default.CheckCircle, Color(0xFFF59E0B), Modifier.weight(1f))
                 }
 
                 ExpressCard("Rendimiento", "Métricas del mes actual") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LinearProgressIndicator(progress = { 0.7f }, modifier = Modifier.fillMaxWidth().height(8.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(4.dp)), color = Color(0xFFDC2626))
-                        Text("Meta de ventas: 70%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                        LinearProgressIndicator(
+                            progress = { (stats.porcentajeMeta / 100).toFloat() }, 
+                            modifier = Modifier.fillMaxWidth().height(8.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(4.dp)), 
+                            color = Color(0xFFDC2626)
+                        )
+                        Text("Meta de ventas: ${stats.porcentajeMeta}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                     }
                 }
             }

@@ -45,6 +45,8 @@ fun AdminNavigationWrapper(role: String, onLogout: () -> Unit, content: @Composa
         NuevoBarberoView(onBack = { currentSubScreen = null })
     } else if (currentSubScreen == "NewCustomer") {
         AdminNuevoClienteView(onBack = { currentSubScreen = null })
+    } else if (currentSubScreen == "NewAppointment") {
+        AdminNuevaReservaView(onBack = { currentSubScreen = null })
     } else if (currentSubScreen == "EditProduct" && editingItem is Product) {
         NuevoProductoView(product = editingItem as Product, onBack = { currentSubScreen = null; editingItem = null })
     } else if (currentSubScreen == "EditService" && editingItem is Service) {
@@ -92,7 +94,6 @@ fun AdminNavigationWrapper(role: String, onLogout: () -> Unit, content: @Composa
                             MenuItem("Barberos", Icons.Default.Face),
                             MenuItem("Inventario", Icons.Default.Inventory2),
                             MenuItem("Clientes", Icons.Default.Group),
-                            MenuItem("Reportes", Icons.Default.Analytics),
                             MenuItem("Servicios", Icons.Default.DryCleaning)
                         )
 
@@ -111,7 +112,10 @@ fun AdminNavigationWrapper(role: String, onLogout: () -> Unit, content: @Composa
                         
                         // Botón Nueva Reserva
                         Button(
-                            onClick = { /* Nueva Reserva */ },
+                            onClick = { 
+                                scope.launch { drawerState.close() }
+                                currentSubScreen = "NewAppointment"
+                            },
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
@@ -232,7 +236,6 @@ fun AdminNavigationWrapper(role: String, onLogout: () -> Unit, content: @Composa
                                 currentSubScreen = "EditCustomer"
                             }
                         )
-                        "Reportes" -> AdminReportesView()
                         else -> {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text("Modulo de $selectedItem - Próximamente", color = Color.Gray)
